@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
+using Hardcodet.Wpf.TaskbarNotification;
 
 namespace ClockOverlay
 {
@@ -17,7 +19,7 @@ namespace ClockOverlay
         public MainWindow()
         {
             InitializeComponent();
-            StartRunning();
+            Setup();
         }
 
         private static Process[] LeagueProcesses => Process.GetProcessesByName("League Of Legends");
@@ -48,21 +50,36 @@ namespace ClockOverlay
             }
         }
 
-        public void StartRunning()
-        {
+        public TaskbarIcon Tb { get; set; }
+
+        public void Setup()
+        { 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             timer.Tick += TimerTick;
             timer.Start();
+
             Visibility = Visibility.Hidden;
-            var settingsDictionary = new Dictionary<string, string>
+
+            var defaultSettings = new Dictionary<string, string>
             {
                 { "xOffset", "90" },
                 { "yOffset", "50" },
-                { "Color", "#FFFFFFFF" },
-                { "TextEffects", "true" }
+                { "TextColor", "#FFFFFFFF" },
+                { "TextEffects", "false" }
             };
 
-            Settings.WriteSettings(settingsDictionary);
+            if (!System.IO.File.Exists("settings.xml"))
+            {
+                Settings.WriteSettings(defaultSettings);
+            }
+            var a = Settings.ReadSettings();
+            if (a == null)
+            {
+                return;
+            }
+            _textTime.Foreground = new SolidColorBrush(Settings.TextColor);
+            Top = Settings.TopOffset;
+            Left = Settings.LeftOffset;
         }
 
         public bool LeagueIsActiveWindow()
@@ -89,35 +106,31 @@ namespace ClockOverlay
             // if this is the active window then do nothing.
             if (ClockIsActiveWindow())
             {
-                Visibility = Visibility.Visible;
                 return;
             }
-            // if league is not the active window and this is topmost then hide this and set topmost to false. 
+            // if league is not the active window then hide this.
             if (!LeagueIsActiveWindow())
             {
                 Visibility = Visibility.Hidden;
+                return;
             }
-            // if league is active window and this isn't topmost then make it topmost, show it, and update it's position. 
-            if (LeagueIsActiveWindow())
-            {
-                if (Visibility != Visibility.Visible)
-                {
-                    Visibility = Visibility.Visible;
-                }
-                UpdatePosition(this, LeagueWindow.Top, LeagueWindow.Right);
-            }
+
+            Visibility = Visibility.Visible;
+            UpdatePosition(this);
+            _textTime.Foreground = new SolidColorBrush(Settings.TextColor);
         }
 
         private void TimerTick(object sender, EventArgs e)
         {
             Update();
-            _textTime.Text = DateTime.Now.ToString("hh:mm");
+            _textTime.Text = DateTime.Now.ToString("hh:mm tt");
         }
 
-        public static void UpdatePosition(MainWindow window, int top, int left)
+        public static void UpdatePosition(MainWindow window)
         {
-            window.Top = top + 65;
-            window.Left = left - 90;
+            Settings.ReadSettings();
+            window.Top = Settings.TopOffset;
+            window.Left = Settings.LeftOffset;
         }
 
         protected override void OnSourceInitialized(EventArgs e)
