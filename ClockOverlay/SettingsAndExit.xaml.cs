@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Hardcodet.Wpf.TaskbarNotification;
+using Xceed.Wpf.Toolkit;
 
 namespace ClockOverlay
 {
@@ -27,7 +28,7 @@ namespace ClockOverlay
 
         private void ButtonExitClick(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show("Are you sure you want to close the clock?", "Confirm", MessageBoxButton.YesNo);
+            var result = System.Windows.MessageBox.Show("Are you sure you want to close the clock?", "Confirm", MessageBoxButton.YesNo);
             if (result == MessageBoxResult.Yes)
             {
                 Environment.Exit(0);
@@ -54,13 +55,17 @@ namespace ClockOverlay
             
         }
 
-        private void textBlockColor_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        private void TextBlockColorPreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (gridSettingsColor.Visibility == Visibility.Hidden)
             {
                 HideGrids();
                 gridSettingsColor.Visibility = Visibility.Visible;
-                textBoxColor.Text = Settings.TextColor;
+                var convertFromString = ColorConverter.ConvertFromString(Settings.TextColor);
+                if (convertFromString != null)
+                {
+                    colorPicker.SelectedColor = (Color) convertFromString;
+                }
                 return;
             }
 
@@ -72,15 +77,15 @@ namespace ClockOverlay
             if (gridSettingsTop.Visibility == Visibility.Hidden)
             {
                 HideGrids();
-                gridSettingsTop.Visibility = Visibility.Visible;
                 textBoxTop.Text = Settings.TopOffset.ToString();
+                gridSettingsTop.Visibility = Visibility.Visible;
                 return;
             }
 
             gridSettingsTop.Visibility = Visibility.Hidden;
         }
 
-        private void textBlockLeft_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        private void TextBlockLeftPreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (gridSettingsLeft.Visibility == Visibility.Hidden)
             {
@@ -93,20 +98,21 @@ namespace ClockOverlay
             gridSettingsLeft.Visibility = Visibility.Hidden;
         }
 
-        private void _buttonSettings_Click(object sender, RoutedEventArgs e)
+        private void ButtonSettingsClick(object sender, RoutedEventArgs e)
         {
             if (gridSettingsBar.Visibility == Visibility.Visible)
             {
+                HideGrids();
                 Height = Height -= 30;
                 gridSettingsBar.Visibility = Visibility.Hidden;
                 return;
             }
-
+            HideGrids();
             gridSettingsBar.Visibility = Visibility.Visible;
             Height = Height += 30;
         }
 
-        private void _settingsAndExit_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void SettingsAndExitClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             e.Cancel = true;
             this.Hide();
@@ -118,20 +124,82 @@ namespace ClockOverlay
             MainWindow.NotifierIcon.ShowBalloonTip("Saved.", "Settings have been saved. Changes should take effect immediately.", BalloonIcon.Info);
         }
 
-        private void buttonClose_Click(object sender, RoutedEventArgs e)
+        private void ButtonCloseClick(object sender, RoutedEventArgs e)
         {
             Close();
         }
 
-        private void buttonMinimize_Click(object sender, RoutedEventArgs e)
+        private void ButtonMinimizeClick(object sender, RoutedEventArgs e)
         {
-            this.WindowState = WindowState.Minimized;
+            this.WindowState = System.Windows.WindowState.Minimized;
         }
 
-        private void gridTitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+        private void GridTitleBarMouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
                 DragMove();
+        }
+
+        private void ButtonApplyLeftClick(object sender, RoutedEventArgs e)
+        {
+            var leftOffset = 0;
+            var isInt = int.TryParse(textBoxLeft.Text, out leftOffset);
+            if (!isInt)
+            {
+                System.Windows.MessageBox.Show("Bad value. Whole numbers only.");
+                return;
+            }
+            var writeValues = new Dictionary<string, string>
+            {
+                { "left", leftOffset.ToString() },
+                { "top", Settings.TopOffset.ToString() },
+                { "color", Settings.TextColor }
+            };
+
+            Settings.WriteSettings(writeValues);
+            Xceed.Wpf.Toolkit.MessageBox.Show("Saved!");
+        }
+
+        private void ButtonApplyTopClick(object sender, RoutedEventArgs e)
+        {
+            var topOffset = 0;
+            var isInt = int.TryParse(textBoxTop.Text, out topOffset);
+            if (!isInt)
+            {
+                System.Windows.MessageBox.Show("Bad value. Whole numbers only.");
+                return;
+            }
+            var writeValues = new Dictionary<string, string>
+            {
+                { "left", Settings.LeftOffset.ToString() },
+                { "top", topOffset.ToString() },
+                { "color", Settings.TextColor }
+            };
+
+            Settings.WriteSettings(writeValues);
+            Xceed.Wpf.Toolkit.MessageBox.Show("Saved!");
+        }
+
+        private void _settingsAndExit_Loaded(object sender, RoutedEventArgs e)
+        {
+
+            System.Windows.Data.CollectionViewSource settingsViewSource = ((System.Windows.Data.CollectionViewSource)(this.FindResource("settingsViewSource")));
+            // Load data by setting the CollectionViewSource.Source property:
+            // settingsViewSource.Source = [generic data source]
+        }
+
+        private void buttonApplyColor_Click(object sender, RoutedEventArgs e)
+        {
+            Color color = colorPicker.SelectedColor;
+            
+            var writeValues = new Dictionary<string, string>
+            {
+                { "left", Settings.LeftOffset.ToString() },
+                { "top", Settings.TopOffset.ToString() },
+                { "color", color.ToString() }
+            };
+
+            Settings.WriteSettings(writeValues);
         }
     }
 }

@@ -72,7 +72,7 @@ namespace ClockOverlay
                     }
                 }
             }
-
+            _xmlSettings = settingsDict;
             return settingsDict;
         }
 
