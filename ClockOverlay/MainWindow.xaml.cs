@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -14,13 +16,31 @@ namespace ClockOverlay
     /// </summary>
     public partial class MainWindow
     {
-        private readonly Process clock = Process.GetCurrentProcess();
-
         public MainWindow()
         {
             InitializeComponent();
             Setup();
         }
+
+        private readonly Process clock = Process.GetCurrentProcess();
+
+        static SettingsAndExit SettingsWindow = new SettingsAndExit();
+
+        private static void NotifierIconOnTrayLeftMouseDown(object sender, RoutedEventArgs routedEventArgs)
+        {
+            if (SettingsWindow.IsVisible)
+            {
+                return;
+            }
+            if (SettingsWindow == null)
+            {
+                SettingsWindow = new SettingsAndExit();
+            }
+            SettingsWindow.Activate();
+            SettingsWindow.ShowDialog();
+        }
+
+        public static TaskbarIcon NotifierIcon;
 
         private static Process[] LeagueProcesses => Process.GetProcessesByName("League Of Legends");
 
@@ -50,55 +70,74 @@ namespace ClockOverlay
             }
         }
 
-        public TaskbarIcon Tb { get; set; }
-
         public void Setup()
-        { 
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            timer.Tick += TimerTick;
-            timer.Start();
+        {
+            NotifierIcon = new TaskbarIcon { };
+            NotifierIcon.TrayLeftMouseDown += NotifierIconOnTrayLeftMouseDown;         
+
+            var timerRefresher = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(10) };
+            timerRefresher.Tick += UpdateTimerTick;
+            timerRefresher.Start();
+
+            var timerSettingsCheck = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            timerSettingsCheck.Tick += SettingsTimerTick;
+            timerSettingsCheck.Start();
+
+            if (!ThereCanOnlyBeOne())
+            {
+                Console.WriteLine(@"I am not the one.");
+                Environment.Exit(187);
+            }
 
             Visibility = Visibility.Hidden;
 
-            var defaultSettings = new Dictionary<string, string>
-            {
-                { "xOffset", "90" },
-                { "yOffset", "50" },
-                { "TextColor", "#FFFFFFFF" },
-                { "TextEffects", "false" }
-            };
-
             if (!System.IO.File.Exists("settings.xml"))
             {
+                var defaultSettings = new Dictionary<string, string>
+                {
+                    { "left", "90" },
+                    { "top", "50" },
+                    { "color", "#FFAC00FF" }
+                };
+
                 Settings.WriteSettings(defaultSettings);
             }
-            var a = Settings.ReadSettings();
-            if (a == null)
+
+            var convertFromString = ColorConverter.ConvertFromString(Settings.TextColor);
+            if (convertFromString != null)
             {
-                return;
+                _textTime.Foreground = new SolidColorBrush((Color)convertFromString);
             }
-            _textTime.Foreground = new SolidColorBrush(Settings.TextColor);
             Top = Settings.TopOffset;
             Left = Settings.LeftOffset;
         }
 
-        public bool LeagueIsActiveWindow()
+        public bool ThereCanOnlyBeOne()
         {
-            if (ForegroundWindowHandle == LeagueWindowHandle)
+            var me = Process.GetCurrentProcess();
+            var wannaBeMes = Process.GetProcessesByName("ClockOverlay");
+
+            if (wannaBeMes.Length <= 1)
             {
                 return true;
             }
 
-            return false;
+            foreach (var wannaBe in wannaBeMes.Where(wannaBe => wannaBe.Id != me.Id))
+            {
+                wannaBe.Kill();
+            }
+
+            return wannaBeMes.Length == 1;
+        }
+
+        public bool LeagueIsActiveWindow()
+        {
+            return ForegroundWindowHandle == LeagueWindowHandle;
         }
 
         public bool ClockIsActiveWindow()
         {
-            if (ForegroundWindowHandle == ClockWindowHandle)
-            {
-                return true;
-            }
-            return false;
+            return ForegroundWindowHandle == ClockWindowHandle;
         }
 
         public void Update()
@@ -116,28 +155,58 @@ namespace ClockOverlay
             }
 
             Visibility = Visibility.Visible;
-            UpdatePosition(this);
-            _textTime.Foreground = new SolidColorBrush(Settings.TextColor);
         }
 
-        private void TimerTick(object sender, EventArgs e)
+        private void UpdateTimerTick(object sender, EventArgs e)
         {
             Update();
-            _textTime.Text = DateTime.Now.ToString("hh:mm tt");
+            _textTime.Text = DateTime.Now.ToString("hh:mm:ss tt");
+        }
+            
+        private void SettingsTimerTick(object sender, EventArgs e)
+        {
+            var updated = Settings.ReadSettings();
+            foreach (var item in updated)
+            {
+                switch (item.Key)
+                {
+                    case "top":
+                        if (item.Value != Top.ToString())
+                        {
+                            UpdatePosition(Convert.ToInt32(item.Value), (int)Left);
+                        }
+                        break;
+                    case "left":
+                        if ( item.Value != Left.ToString())
+                        {
+                            UpdatePosition((int)Top, Convert.ToInt32(item.Value));
+                        }
+                        break;
+                    case "color":
+                        Console.WriteLine("color updated.");
+                        Console.WriteLine(_textTime.Foreground.ToString());
+                        Console.WriteLine(item.Value);
+                        _textTime.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(item.Value));
+                        break;
+                }
+                
+            }
+            Console.WriteLine(@"updated.");
         }
 
-        public static void UpdatePosition(MainWindow window)
+        public void UpdatePosition(int top, int left)
         {
-            Settings.ReadSettings();
-            window.Top = Settings.TopOffset;
-            window.Left = Settings.LeftOffset;
+            Top = top;
+            Left = left;
+
+            Console.WriteLine("moved.");
         }
 
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
             var hwnd = new WindowInteropHelper(this).Handle;
-            NativeMethods.makeTransparent(hwnd);
+            NativeMethods.MakeTransparent(hwnd);
         }
     }
 }

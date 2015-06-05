@@ -5,8 +5,8 @@ namespace ClockOverlay
 {
     public static class NativeMethods
     {
-        public const int WS_EX_TRANSPARENT = 0x00000020;
-        public const int GWL_EXSTYLE = (-20);
+        public const int WsExTransparent = 0x00000020;
+        public const int GwlExstyle = (-20);
 
         [DllImport("user32.dll")]
         internal static extern int GetWindowLong(IntPtr hwnd,
@@ -16,11 +16,11 @@ namespace ClockOverlay
         internal static extern int SetWindowLong(IntPtr hwnd,
         int index, int newStyle);
 
-        public static void makeTransparent(IntPtr hwnd)
+        public static void MakeTransparent(IntPtr hwnd)
         {
-            int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-            SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle |
-            WS_EX_TRANSPARENT);
+            int extendedStyle = GetWindowLong(hwnd, GwlExstyle);
+            SetWindowLong(hwnd, GwlExstyle, extendedStyle |
+            WsExTransparent);
         }
 
         [DllImport("user32.dll")]

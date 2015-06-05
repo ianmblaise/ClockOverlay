@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.IO;
 using System.Text;
 using System.Windows.Media;
 using System.Xml;
@@ -9,18 +9,23 @@ namespace ClockOverlay
 {
     public static class Settings
     {
-        public static string SettingsFile = "settings.xml";
+        public const string SettingsFile = "settings.xml";
 
+        public static Int32 TopOffset => Convert.ToInt32(XmlSettings["top"]);
 
-        public static float TopOffset { get; set; }
-        public static float LeftOffset { get; set; }
-        public static Color TextColor { get; set; }
-        public static bool TextEffects { get; set; }
+        public static int LeftOffset => Convert.ToInt32(XmlSettings["left"]);
+
+        public static string TextColor => XmlSettings["color"];
+
+        private static Dictionary<string, string> _xmlSettings; 
+        public static Dictionary<string, string> XmlSettings => _xmlSettings ?? (_xmlSettings = ReadSettings());
 
         public static Dictionary<string, string> ReadSettings()
         {
+            var settingsDict = new Dictionary<string, string>();
             using (var reader = XmlReader.Create(SettingsFile, new XmlReaderSettings() { IgnoreWhitespace = true }))
             {
+                
                 while (reader.Read())
                 {
                     if (!reader.IsStartElement())
@@ -30,52 +35,50 @@ namespace ClockOverlay
 
                     switch (reader.Name)
                     {
-                        case "xOffset":
+                        case "left":
                             if (reader.Read())
                             {
-                                LeftOffset = reader.ReadContentAsInt();
+                                var left = reader.ReadContentAsInt();
+                                settingsDict.Add("left", left.ToString());
                             }
                             break;
 
-                        case "yOffset":
+                        case "top":
                             if (reader.Read())
                             {
-                                TopOffset = reader.ReadContentAsInt();
+                                var top = reader.ReadContentAsInt();
+                                settingsDict.Add("top", top.ToString());
                             }
                             break;
 
-                        case "TextColor":
+                        case "color":
                             if (reader.Read())
                             {
-                                var colorConverter = ColorConverter.ConvertFromString(reader.Value);
-                                if (colorConverter != null)
+                                try
                                 {
-                                    TextColor = (Color)colorConverter;
+                                    var colorConverter = ColorConverter.ConvertFromString(reader.ReadContentAsString());
+                                    if (colorConverter != null)
+                                    {
+                                        var color = (Color) colorConverter;
+                                        settingsDict.Add("color", color.ToString());
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine("bad color input.");
                                 }
                             }
                             break;
                     }
                 }
             }
-            var dict = new Dictionary<string, string>
-            {
-                { "xOffset", LeftOffset.ToString(CultureInfo.InvariantCulture) },
-                { "yOffset", TopOffset.ToString(CultureInfo.InvariantCulture) },
-                { "TextColor", HexConverter(TextColor) }
-            };
 
-            return dict;
+            return settingsDict;
         }
-
-        private static string HexConverter(System.Windows.Media.Color c)
-        {
-            return "#" + c.R.ToString("X2") + c.G.ToString("X2") + c.B.ToString("X2");
-        }
-
 
         public static void WriteSettings(Dictionary<string, string> settings, bool overwrite = true)
         {
-            if (!overwrite && System.IO.File.Exists(SettingsFile))
+            if (!overwrite && File.Exists(SettingsFile))
             {
                 return;
             }
