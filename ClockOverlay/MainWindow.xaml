@@ -1,8 +1,8 @@
 ﻿<Window x:Class="ClockOverlay.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:D="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:Mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         x:Name="_mainWindow"
         Width="70"
         Height="20"
@@ -12,12 +12,12 @@
         Foreground="#FFD2FDFB"
         IsHitTestVisible="False"
         IsTabStop="False"
-        Mc:Ignorable="D"
+        mc:Ignorable="d"
         ShowInTaskbar="False"
         Topmost="True"
         UseLayoutRounding="True"
         Visibility="Hidden"
-        WindowStyle="None">
+        WindowStyle="None" Closed="_mainWindow_Closed" Closing="_mainWindow_Closing">
 
     <Grid x:Name="_mainGrid"
           Margin="0,0,0,0"
@@ -30,7 +30,7 @@
                    IsHitTestVisible="False"
                    Text="Unknown"
                    TextAlignment="Center"
-                   Visibility="Visible">
+                   Visibility="Visible" TextWrapping="Wrap">
             <TextBlock.Effect>
                 <DropShadowEffect Direction="215"
                                   Opacity="0.98"

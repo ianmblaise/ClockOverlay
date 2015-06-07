@@ -1,83 +1,98 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel;
+using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-using Hardcodet.Wpf.TaskbarNotification;
-using Xceed.Wpf.Toolkit;
+using ClockOverlay.Properties;
+using Microsoft.Win32;
 
 namespace ClockOverlay
 {
     /// <summary>
-    /// Interaction logic for SettingsAndExit.xaml
+    ///     Interaction logic for SettingsAndExit.xaml
     /// </summary>
-    public partial class SettingsAndExit : Window
+    public partial class SettingsAndExit
     {
+        private readonly UserSettings _settings = new UserSettings();
+
+        /// <summary>
+        ///     Constructor for the Settings and Exit form. Default operation..
+        /// </summary>
         public SettingsAndExit()
         {
             InitializeComponent();
         }
 
-        private void ButtonExitClick(object sender, RoutedEventArgs e)
+        /// <summary>
+        ///     Returns true if there is an existing key in the registry start up path.
+        /// </summary>
+        public static bool IsInStartUp
         {
-            var result = System.Windows.MessageBox.Show("Are you sure you want to close the clock?", "Confirm", MessageBoxButton.YesNo);
-            if (result == MessageBoxResult.Yes)
+            get
             {
-                Environment.Exit(0);
+                var startupKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\");
+
+                if (startupKey == null) throw new ArgumentNullException(nameof(startupKey));
+                return startupKey.GetValue("lolClock") != null;
             }
         }
 
-        private void textBlock1_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        /// <summary>
+        ///     Terminates the application if the user pushes Yes on the dialog presented to them
+        ///     after they press the Exit button.
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
+        private void ButtonExitClick(object sender, RoutedEventArgs e)
         {
-            if (gridSettingsTop.Visibility == Visibility.Hidden)
+            var result = MessageBox.Show("Are you sure you want to close the clock?", "Confirm", MessageBoxButton.YesNo);
+            if (result != MessageBoxResult.Yes)
             {
-                HideGrids();
-                gridSettingsTop.Visibility = Visibility.Visible;
                 return;
             }
 
-            gridSettingsTop.Visibility = Visibility.Hidden;
+            Application.Current.Shutdown();
         }
 
+        /// <summary>
+        ///     Just hides all of the settings grids to prepare the UI for a different one to be visible.
+        /// </summary>
         private void HideGrids()
         {
             gridSettingsColor.Visibility = Visibility.Hidden;
             gridSettingsLeft.Visibility = Visibility.Hidden;
             gridSettingsTop.Visibility = Visibility.Hidden;
-            
         }
 
+        /// <summary>
+        ///     Shows the grid with the color selector on it.
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
         private void TextBlockColorPreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (gridSettingsColor.Visibility == Visibility.Hidden)
             {
                 HideGrids();
+                colorPicker.SelectedColor = _settings.TextColor;
                 gridSettingsColor.Visibility = Visibility.Visible;
-                var convertFromString = ColorConverter.ConvertFromString(Settings.TextColor);
-                if (convertFromString != null)
-                {
-                    colorPicker.SelectedColor = (Color) convertFromString;
-                }
                 return;
             }
 
             gridSettingsColor.Visibility = Visibility.Hidden;
         }
 
+        /// <summary>
+        ///     Shows the grid that is used to configure the value stored for the top offset.
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
         private void textBlockTop_PreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (gridSettingsTop.Visibility == Visibility.Hidden)
             {
                 HideGrids();
-                textBoxTop.Text = Settings.TopOffset.ToString();
+                textBoxTop.Text = _settings.TopOffset.ToString();
                 gridSettingsTop.Visibility = Visibility.Visible;
                 return;
             }
@@ -85,12 +100,17 @@ namespace ClockOverlay
             gridSettingsTop.Visibility = Visibility.Hidden;
         }
 
+        /// <summary>
+        ///     Shows the grid that is used to configure the value stored for the left offset.
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
         private void TextBlockLeftPreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (gridSettingsLeft.Visibility == Visibility.Hidden)
             {
                 HideGrids();
-                textBoxLeft.Text = Settings.LeftOffset.ToString();
+                textBoxLeft.Text = _settings.LeftOffset.ToString();
                 gridSettingsLeft.Visibility = Visibility.Visible;
                 return;
             }
@@ -98,108 +118,136 @@ namespace ClockOverlay
             gridSettingsLeft.Visibility = Visibility.Hidden;
         }
 
+        /// <summary>
+        ///     Toggles the visibility for the settings bar at the bottom of the window.
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
         private void ButtonSettingsClick(object sender, RoutedEventArgs e)
         {
             if (gridSettingsBar.Visibility == Visibility.Visible)
             {
                 HideGrids();
-                Height = Height -= 30;
                 gridSettingsBar.Visibility = Visibility.Hidden;
+                Height = 140;
                 return;
             }
-            HideGrids();
+            Height = 170;
             gridSettingsBar.Visibility = Visibility.Visible;
-            Height = Height += 30;
         }
 
-        private void SettingsAndExitClosing(object sender, System.ComponentModel.CancelEventArgs e)
+        /// <summary>
+        ///     Raised after ButtonClose is clicked and calls <see cref="System.Windows.Window.Close()"/>. Just hides the form, doesn't terminate application.
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
+        private void SettingsAndExitClosing(object sender, CancelEventArgs e)
         {
             e.Cancel = true;
-            this.Hide();
+            Hide();
         }
 
-        private void ButtonSaveSettingsClick(object sender, RoutedEventArgs e)
-        {
-            gridSettingsBar.Visibility = Visibility.Hidden;
-            MainWindow.NotifierIcon.ShowBalloonTip("Saved.", "Settings have been saved. Changes should take effect immediately.", BalloonIcon.Info);
-        }
-
+        /// <summary>
+        ///     Raised when ButtonClose is clicked, calls Close() which gets intercepted by the Closing event.
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
         private void ButtonCloseClick(object sender, RoutedEventArgs e)
         {
             Close();
         }
 
+        /// <summary>
+        ///     Raised when ButtonMinimize is clicked. Just sets the WindowState to <see cref="WindowState.Minimized"/>
+        /// </summary>
+        /// <param name="sender">The sender.</param>
+        /// <param name="e">Args.</param>
         private void ButtonMinimizeClick(object sender, RoutedEventArgs e)
         {
-            this.WindowState = System.Windows.WindowState.Minimized;
+            WindowState = WindowState.Minimized;
         }
 
+        /// <summary>
+        ///     Raised while the user is holding down on the mouse, drags the form around.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void GridTitleBarMouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
                 DragMove();
         }
 
+        /// <summary>
+        ///     Saves the Left offset setting.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ButtonApplyLeftClick(object sender, RoutedEventArgs e)
         {
-            var leftOffset = 0;
+            int leftOffset;
             var isInt = int.TryParse(textBoxLeft.Text, out leftOffset);
             if (!isInt)
             {
-                System.Windows.MessageBox.Show("Bad value. Whole numbers only.");
+                MessageBox.Show("Bad value. Whole numbers only.");
                 return;
             }
-            var writeValues = new Dictionary<string, string>
-            {
-                { "left", leftOffset.ToString() },
-                { "top", Settings.TopOffset.ToString() },
-                { "color", Settings.TextColor }
-            };
 
-            Settings.WriteSettings(writeValues);
-            Xceed.Wpf.Toolkit.MessageBox.Show("Saved!");
+            _settings.LeftOffset = leftOffset;
         }
 
+        /// <summary>
+        ///     Saves the Top offset setting.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ButtonApplyTopClick(object sender, RoutedEventArgs e)
         {
-            var topOffset = 0;
+            int topOffset;
             var isInt = int.TryParse(textBoxTop.Text, out topOffset);
             if (!isInt)
             {
-                System.Windows.MessageBox.Show("Bad value. Whole numbers only.");
+                MessageBox.Show("Bad value. Whole numbers only.");
                 return;
             }
-            var writeValues = new Dictionary<string, string>
-            {
-                { "left", Settings.LeftOffset.ToString() },
-                { "top", topOffset.ToString() },
-                { "color", Settings.TextColor }
-            };
 
-            Settings.WriteSettings(writeValues);
-            Xceed.Wpf.Toolkit.MessageBox.Show("Saved!");
+            _settings.TopOffset = topOffset;
         }
 
-        private void _settingsAndExit_Loaded(object sender, RoutedEventArgs e)
+        /// <summary>
+        ///     Saves the Color setting.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonApplyColorClick(object sender, RoutedEventArgs e)
         {
-
-            System.Windows.Data.CollectionViewSource settingsViewSource = ((System.Windows.Data.CollectionViewSource)(this.FindResource("settingsViewSource")));
-            // Load data by setting the CollectionViewSource.Source property:
-            // settingsViewSource.Source = [generic data source]
+            var color = colorPicker.SelectedColor;
+            _settings.TextColor = color;
         }
 
-        private void buttonApplyColor_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        ///     When it is checked then a registry key value is written to the startup path in the current user's registry.
+        ///     When it is unchecked then the registry key is deleted from that path.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox_Click(object sender, RoutedEventArgs e)
         {
-            Color color = colorPicker.SelectedColor;
-            
-            var writeValues = new Dictionary<string, string>
-            {
-                { "left", Settings.LeftOffset.ToString() },
-                { "top", Settings.TopOffset.ToString() },
-                { "color", color.ToString() }
-            };
+            var startupKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
 
-            Settings.WriteSettings(writeValues);
+            if (startupKey != null && (!IsInStartUp || File.Exists(startupKey.GetValue("lolClock").ToString())))
+            {
+                startupKey.SetValue("lolClock",
+                    "\"" + AppDomain.CurrentDomain.BaseDirectory + "ClockOverlay.exe" + "\"");
+                startupKey.Close();
+                return;
+            }
+
+            if (startupKey != null)
+            {
+                startupKey.DeleteValue("lolClock");
+                startupKey.Close();
+            }
         }
     }
 }

@@ -22,5 +22,41 @@ namespace ClockOverlay.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("70")]
+        public int offsetTop {
+            get {
+                return ((int)(this["offsetTop"]));
+            }
+            set {
+                this["offsetTop"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1835")]
+        public int offsetLeft {
+            get {
+                return ((int)(this["offsetLeft"]));
+            }
+            set {
+                this["offsetLeft"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("#FFFFFF00")]
+        public global::System.Windows.Media.Color colorCode {
+            get {
+                return ((global::System.Windows.Media.Color)(this["colorCode"]));
+            }
+            set {
+                this["colorCode"] = value;
+            }
+        }
     }
 }

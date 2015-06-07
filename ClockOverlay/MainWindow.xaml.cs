@@ -1,12 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using ClockOverlay.Properties;
 using Hardcodet.Wpf.TaskbarNotification;
 
 namespace ClockOverlay
@@ -28,7 +28,7 @@ namespace ClockOverlay
         /// <summary>
         ///     The process object for this instance.
         /// </summary>
-        private readonly Process clock = Process.GetCurrentProcess();
+        private readonly Process _clock = Process.GetCurrentProcess();
 
         /// <summary>
         ///     The settings window that will be activated when the user clicks the notifier icon.
@@ -46,12 +46,12 @@ namespace ClockOverlay
             {
                 return;
             }
-            if (_settingsWindow == null)
+            if (_settingsWindow == null || _settingsWindow.IsLoaded == false)
             {
                 _settingsWindow = new SettingsAndExit();
             }
             _settingsWindow.Activate();
-            _settingsWindow.ShowDialog();
+            _settingsWindow.Show();
         }
 
         /// <summary>
@@ -67,11 +67,11 @@ namespace ClockOverlay
         /// <summary>
         ///     The window handle of League of Legends.
         /// </summary>
-        private static IntPtr LeagueWindowHandle
+        public static IntPtr LeagueWindowHandle
         {
             get
             {
-                if (LeagueProcesses.Length <= 0)
+                if (LeagueProcesses.Length == 0 || LeagueProcesses == null)
                 {
                     return (IntPtr) 0;
                 }
@@ -82,7 +82,7 @@ namespace ClockOverlay
         /// <summary>
         ///     The window handle of this instance's process.
         /// </summary>
-        private IntPtr ClockWindowHandle => clock.MainWindowHandle;
+        private IntPtr ClockWindowHandle => _clock.MainWindowHandle;
 
         /// <summary>
         ///     The window handle of the current foreground window.
@@ -107,6 +107,13 @@ namespace ClockOverlay
         /// </summary>
         public void Setup()
         {
+            Visibility = Visibility.Hidden;
+
+            if (!ThereCanOnlyBeOne())
+            {
+                Application.Current.Shutdown();
+            }
+
             NotifierIcon = new TaskbarIcon { Icon = Properties.Resources.ClockIcon };
             NotifierIcon.TrayLeftMouseDown += NotifierIconOnTrayLeftMouseDown;         
 
@@ -118,33 +125,6 @@ namespace ClockOverlay
             timerSettingsCheck.Tick += SettingsTimerTick;
             timerSettingsCheck.Start();
 
-            if (!ThereCanOnlyBeOne())
-            {
-                Console.WriteLine(@"I am not the one.");
-                Environment.Exit(187);
-            }
-
-            Visibility = Visibility.Hidden;
-
-            if (!System.IO.File.Exists("settings.xml"))
-            {
-                var defaultSettings = new Dictionary<string, string>
-                {
-                    { "left", "90" },
-                    { "top", "50" },
-                    { "color", "#FFAC00FF" }
-                };
-
-                Settings.WriteSettings(defaultSettings);
-            }
-
-            var convertFromString = ColorConverter.ConvertFromString(Settings.TextColor);
-            if (convertFromString != null)
-            {
-                _textTime.Foreground = new SolidColorBrush((Color)convertFromString);
-            }
-            Top = Settings.TopOffset;
-            Left = Settings.LeftOffset;
         }
 
         /// <summary>
@@ -215,7 +195,14 @@ namespace ClockOverlay
         private void UpdateTimerTick(object sender, EventArgs e)
         {
             Update();
+
             _textTime.Text = DateTime.Now.ToString("hh:mm:ss tt");
+            Top = LeagueWindow.Top + Settings.Default.offsetTop;
+            Left = LeagueWindow.Left + Settings.Default.offsetLeft;
+
+            var colorText = Settings.Default.colorCode;
+            var color = Color.FromArgb(colorText.A, colorText.R, colorText.G, colorText.B);
+            _textTime.Foreground = new SolidColorBrush(color);
         }
             
         /// <summary>
@@ -225,36 +212,6 @@ namespace ClockOverlay
         /// <param name="e">args.</param>
         private void SettingsTimerTick(object sender, EventArgs e)
         {
-            var updatedSettings = Settings.ReadSettings();
-
-            foreach (var item in updatedSettings)
-            {
-                switch (item.Key)
-                {
-                    // The top offset setting.
-                    case "top":
-                        if (item.Value != Top.ToString(CultureInfo.InvariantCulture))
-                        {
-                            UpdatePosition(Convert.ToInt32(item.Value), (int)Left);
-                        }
-                        break;
-                    // The left offset setting.
-                    case "left":
-                        if ( item.Value != Left.ToString(CultureInfo.InvariantCulture))
-                        {
-                            UpdatePosition((int)Top, Convert.ToInt32(item.Value));
-                        }
-                        break;
-                    // The color setting.
-                    case "color":
-                        var convertFromString = ColorConverter.ConvertFromString(item.Value);
-                        if (convertFromString != null)
-                        {
-                            _textTime.Foreground = new SolidColorBrush((Color)convertFromString);
-                        }
-                        break;
-                }
-            }
         }
 
         /// <summary>
@@ -266,7 +223,6 @@ namespace ClockOverlay
         {
             Top = LeagueWindow.Top + top;
             Left = LeagueWindow.Left + left;
-            Console.WriteLine(top + " " + left + " "  +ForegroundWindowHandle) ;
         }
 
         /// <summary>
@@ -278,6 +234,27 @@ namespace ClockOverlay
             base.OnSourceInitialized(e);
             var hwnd = new WindowInteropHelper(this).Handle;
             NativeMethods.MakeTransparent(hwnd);
+        }
+
+        /// <summary>
+        ///     An attempt to get rid of the notifier icon that stays after the program closes.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void _mainWindow_Closed(object sender, EventArgs e)
+        {
+            NotifierIcon.Icon = null;
+        }
+
+        /// <summary>
+        ///     Another attempt to clean it up, if you're reading this and know how to dipose of it before the process dies let me know!
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void _mainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            NotifierIcon.Icon = null;
+            NotifierIcon.Visibility = Visibility.Hidden;
         }
     }
 }
